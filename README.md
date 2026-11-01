@@ -1,4 +1,4 @@
- Tactical Strike — Web Deathmatch
+# Tactical Strike — Web Deathmatch
 
 Réplica jogável e didática de um FPS tático clássico, feita com **Three.js + cannon-es** e sem assets externos. O foco desta primeira fase é o modo **Player vs Bots** em uma versão simplificada de um mapa estilo *dust2*.
 

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#17150f" />
+  <title>Tactical Strike — Web Deathmatch</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main id="app">
+    <!-- O renderer do Three.js usa este canvas já existente. -->
+    <canvas id="game-canvas" aria-label="Área do jogo"></canvas>
+
+    <!-- ===================== HUD PRINCIPAL ===================== -->
+    <section id="hud" aria-label="HUD do jogo">
+      <div id="top-bar">
+        <div class="team-score ct">
+          <span class="team-label">CT</span>
+          <strong id="player-kills">0</strong>
+        </div>
+
+        <div class="match-center">
+          <span id="round-timer">10:00</span>
+          <small>DEATHMATCH · 25 ABATES</small>
+        </div>
+
+        <div class="team-score t">
+          <span class="team-label">BOTS</span>
+          <strong id="bots-alive">5</strong>
+        </div>
+      </div>
+
+      <div id="radar-wrap">
+        <div class="radar-title">DE_DUST2_LITE</div>
+        <canvas id="radar" width="190" height="190" aria-label="Radar"></canvas>
+        <div class="radar-foot">
+          <span id="player-deaths">MORTES 0</span>
+          <span id="radar-status">LOCAL</span>
+        </div>
+      </div>
+
+      <div id="kill-feed" aria-live="polite"></div>
+
+      <!-- Vida e colete -->
+      <div id="hud-left">
+        <div class="hud-stat health">
+          <span class="hud-icon">✚</span>
+          <span id="health">100</span>
+        </div>
+        <div class="hud-stat armor">
+          <span class="hud-icon">▣</span>
+          <span id="armor">100</span>
+        </div>
+      </div>
+
+      <!-- Arma e munição -->
+      <div id="hud-right">
+        <div id="weapon-name">AK-47</div>
+        <div class="ammo-row">
+          <span id="ammo-clip">30</span>
+          <span class="ammo-sep">/</span>
+          <span id="ammo-reserve">90</span>
+        </div>
+        <div id="reload-hint" class="hidden">R — RECARREGAR</div>
+      </div>
+
+      <!-- Mira clássica dinâmica -->
+      <div id="crosshair" aria-hidden="true">
+        <span class="ch-line ch-top"></span>
+        <span class="ch-line ch-bottom"></span>
+        <span class="ch-line ch-left"></span>
+        <span class="ch-line ch-right"></span>
+        <span class="ch-dot"></span>
+      </div>
+
+      <!-- Feedback de acerto -->
+      <div id="hitmarker" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div id="headshot-flash" aria-hidden="true">HEADSHOT</div>
+
+      <!-- Aviso central (recarregando, sem munição etc.) -->
+      <div id="center-hint" class="hidden"></div>
+      <div id="damage-vignette" aria-hidden="true"></div>
+      <div id="low-health-vignette" aria-hidden="true"></div>
+    </section>
+
+    <!-- ===================== MENU INICIAL ===================== -->
+    <section id="start-screen" class="overlay">
+      <div class="menu-noise" aria-hidden="true"></div>
+      <div class="menu-frame">
+        <p class="menu-kicker">LOCAL DEATHMATCH · DUST2 LITE</p>
+
+        <div class="logo-block">
+          <h1>TACTICAL<span>-</span>STRIKE</h1>
+          <div class="version-line">
+            <b>WEB</b>
+            <span>DEATHMATCH · THREE.JS</span>
+          </div>
+        </div>
+
+        <p class="menu-sub">
+          FPS tático independente para navegador. Movimento com inércia, bunny
+          hop, recuo progressivo, hitboxes por parte do corpo e bots com visão.
+          Sem compra, sem economia — apenas deathmatch puro contra bots.
+        </p>
+
+        <div class="menu-grid">
+          <div class="menu-panel">
+            <h2>CONFIGURAÇÃO RÁPIDA</h2>
+
+            <label class="field-row" for="bot-count">
+              <span>Bots em campo</span>
+              <select id="bot-count">
+                <option value="3">3 — Casual</option>
+                <option value="5" selected>5 — Clássico</option>
+                <option value="7">7 — Caos</option>
+              </select>
+            </label>
+
+            <label class="field-row" for="sensitivity">
+              <span>Sensibilidade <output id="sensitivity-output">1.00</output></span>
+              <input id="sensitivity" type="range" min="0.25" max="2.5" step="0.05" value="1" />
+            </label>
+
+            <div class="loadout-preview">
+              <span>LOADOUT</span>
+              <div>
+                <kbd>1</kbd> AK-47
+                <kbd>2</kbd> USP
+                <kbd>3</kbd> M4A1
+                <kbd>4</kbd> AWP
+                <kbd>5</kbd> Deagle
+                <kbd>R</kbd> recarregar
+                <kbd>G</kbd> granada
+              </div>
+            </div>
+
+            <button id="start-button" class="cs-button" type="button">
+              ENTRAR NO SERVIDOR
+            </button>
+            <p class="menu-note">O navegador vai capturar o mouse. Pressione <kbd>ESC</kbd> para pausar.</p>
+          </div>
+
+          <aside class="controls-panel">
+            <h2>CONTROLES</h2>
+            <ul>
+              <li><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> Movimentação</li>
+              <li><span><kbd>SHIFT</kbd></span> Andar devagar</li>
+              <li><span><kbd>CTRL</kbd></span> Agachar</li>
+              <li><span><kbd>ESPAÇO</kbd></span> Pular / bunny hop</li>
+              <li><span><kbd>MOUSE 1</kbd></span> Atirar</li>
+              <li><span><kbd>R</kbd></span> Recarregar</li>
+              <li><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><kbd>5</kbd><kbd>WHEEL</kbd></span> Trocar arma</li>
+              <li><span><kbd>G</kbd></span> Granada</li>
+            </ul>
+            <div class="tip">
+              <b>DICA DE MOVIMENTO</b>
+              Segure <kbd>ESPAÇO</kbd>, pule e faça strafe no ar. O ganho de
+              velocidade vem da aceleração aérea clássica.
+            </div>
+          </aside>
+        </div>
+
+        <footer class="menu-footer">
+          <span>PROJETO EDUCACIONAL · FPS INDEPENDENTE</span>
+          <span>CS 1.6 CLASSIC FEEL / 128 TICK</span>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ===================== PAUSA ===================== -->
+    <section id="pause-screen" class="overlay compact hidden">
+      <div class="pause-panel">
+        <p class="menu-kicker">SERVIDOR LOCAL</p>
+        <h2>JOGO PAUSADO</h2>
+        <p>O mouse foi liberado. A partida está congelada.</p>
+        <button id="resume-button" class="cs-button" type="button">VOLTAR AO JOGO</button>
+        <p class="menu-note">Pressione <kbd>ESC</kbd> novamente para liberar o cursor.</p>
+      </div>
+    </section>
+
+    <!-- ===================== MORTE ===================== -->
+    <section id="death-screen" class="death-overlay hidden" aria-live="assertive">
+      <div class="death-card">
+        <span class="death-kicker">VOCÊ FOI ELIMINADO</span>
+        <h2>MORTO</h2>
+        <p><span id="death-credit">—</span></p>
+        <div class="respawn-line">
+          RENASCENDO EM <strong id="respawn-countdown">3</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FIM DE PARTIDA ===================== -->
+    <section id="gameover-screen" class="overlay compact hidden">
+      <div class="pause-panel result-panel">
+        <p class="menu-kicker">RELATÓRIO FINAL</p>
+        <h2 id="result-title">FIM DA PARTIDA</h2>
+        <div class="result-stats">
+          <div><span>ABATES</span><strong id="result-kills">0</strong></div>
+          <div><span>MORTES</span><strong id="result-deaths">0</strong></div>
+          <div><span>K/D</span><strong id="result-kd">0.00</strong></div>
+        </div>
+        <button id="restart-button" class="cs-button" type="button">JOGAR NOVAMENTE</button>
+      </div>
+    </section>
+
+    <div id="fatal-error" class="hidden" role="alert"></div>
+  </main>
+
+  <!--
+    Dependências carregadas por CDN para manter o projeto 100% estático.
+    O projeto precisa de internet na primeira carga. Veja o README.md.
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+        "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+      }
+    }
+  </script>
+
+  <script>
+    // Mostra um erro legível caso módulos/CDN/WebGL falhem.
+    window.addEventListener('error', function (event) {
+      const el = document.getElementById('fatal-error');
+      if (!el) return;
+      el.textContent = 'Falha ao carregar o jogo: ' + (event.message || 'verifique sua conexão e o console.');
+      el.classList.remove('hidden');
+    });
+  </script>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
